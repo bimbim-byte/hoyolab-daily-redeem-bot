@@ -366,11 +366,6 @@ function editMessageText(chatId, messageId, text) {
   });
 }
 
-function setWebhook() {
-  const response = UrlFetchApp.fetch(telegramUrl + "/setWebhook?url=" + WEBHOOK_URL);
-  Logger.log(response.getContentText());
-}
-
 function handleError(modul, namaAkun, pesanError) {
   const formatLog = `❌ [ERROR - ${modul}] | Akun: ${namaAkun} | Pesan: ${pesanError}`;
   console.error(formatLog);
