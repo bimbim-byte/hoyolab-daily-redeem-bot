@@ -13,3 +13,8 @@ const COMMON_HEADERS = {
   "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36",
   "x-rpc-client_type": "4"
 };
+
+function setWebhook() {
+  const response = UrlFetchApp.fetch(telegramUrl + "/setWebhook?url=" + WEBHOOK_URL);
+  Logger.log(response.getContentText());
+}
