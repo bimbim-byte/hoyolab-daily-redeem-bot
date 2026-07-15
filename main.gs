@@ -4,7 +4,7 @@ const WEBHOOK_URL = "";           // SETELAH MELAKUKAN DEPLOYMENT BARU, MASUKAN 
 
 const telegramUrl = "https://api.telegram.org/bot" + TELEGRAM_TOKEN;
 
-const COMMON_HEADERS = {
+const COMMON_HEADERS = {  
   "Accept": "application/json, text/plain, */*",
   "Accept-Encoding": "gzip, deflate, br, zstd",
   "Connection": "keep-alive",
@@ -1176,6 +1176,27 @@ function sendNewNotif(gameName, code, description, claimUrl) {
   }
 }
 
+function extractCookies(rawCookie) {
+  // Fungsi pembantu untuk mengambil cookie berdasarkan nama
+  function getCookieValue(cookieString, name) {
+    const match = cookieString.match(new RegExp('(^|;\\s*)' + name + '=([^;]*)'));
+    return match ? decodeURIComponent(match[2]) : null;
+  }
+
+  const ltuid = getCookieValue(rawCookie, 'ltuid_v2');
+  const ltoken = getCookieValue(rawCookie, 'ltoken_v2');
+
+  Logger.log("Hasil Ekstraksi Cookie:");
+  Logger.log("ltuid_v2: " + ltuid);
+  Logger.log("ltoken_v2: " + ltoken);
+
+  return {
+    ltuid_v2: ltuid,
+    ltoken_v2: ltoken
+  };
+}
+
+
 async function tambahAkunBaruWizard() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheet = ss.getSheetByName("Akun");
@@ -1184,7 +1205,7 @@ async function tambahAkunBaruWizard() {
   let gameKey = "";
   while (true) {
     let inputGame = Browser.inputBox(
-      "➕ TAMBAH AKUN: LANGKAH 1/4", 
+      "➕ TAMBAH AKUN: LANGKAH 1/2", 
       "Pilih Game yang ingin dimasukkan:\\n\\n1. Genshin Impact (ketik 1 atau genshin)\\n2. Honkai: Star Rail (ketik 2 or starrail)\\n3. Zenless Zone Zero (ketik 3 or zenless)\\n\\nKetik 'batal' untuk keluar.", 
       Browser.Buttons.OK_CANCEL
     );
@@ -1210,22 +1231,14 @@ async function tambahAkunBaruWizard() {
     }
   }
 
-  let ltoken = Browser.inputBox("➕ TAMBAH AKUN: LANGKAH 2/4", "Masukkan nilai ltoken_v2 Anda:\\n(Bisa dikosongkan jika token sudah menyatu di Cookie baris 4)", Browser.Buttons.OK_CANCEL);
-  if (ltoken === "cancel") return;
-  ltoken = ltoken.trim();
+  let cookie = Browser.inputBox("➕ TAMBAH AKUN: LANGKAH 2/2", "Masukkan nilai Cookie Anda:\\n(Bisa dikosongkan jika token sudah menyatu di Cookie baris 4)", Browser.Buttons.OK_CANCEL);
+  if (cookie === "cancel") return;
+  const selected_cookie = extractCookies(cookie);
+  let ltoken = selected_cookie.ltoken_v2;
+  let ltuid = selected_cookie.ltuid_v2;
+  cookie = cookie.trim();
 
-  let ltuid = Browser.inputBox("➕ TAMBAH AKUN: LANGKAH 3/4", "Masukkan nilai ltuid_v2 Anda:\\n(Bisa dikosongkan jika token sudah menyatu di Cookie baris 4)", Browser.Buttons.OK_CANCEL);
-  if (ltuid === "cancel") return;
-  ltuid = ltuid.trim();
-
-  let baseCookie = Browser.inputBox("➕ TAMBAH AKUN: LANGKAH 4/4", "Masukkan string Cookie lengkap Anda:", Browser.Buttons.OK_CANCEL);
-  if (baseCookie === "cancel" || !baseCookie.trim()) {
-    Browser.msgBox("⚠️ Error", "Cookie utama wajib diisi!", Browser.Buttons.OK);
-    return;
-  }
-  baseCookie = baseCookie.trim();
-
-  let finalCookie = baseCookie;
+  let finalCookie = cookie;
   if (!finalCookie.includes("ltoken_v2=") && ltoken && ltuid) {
     finalCookie = `ltoken_v2=${ltoken}; ltuid_v2=${ltuid}; ${finalCookie}`;
   }
@@ -1253,7 +1266,7 @@ async function tambahAkunBaruWizard() {
     sheet.getRange(1, nextColumnIndex).setValue(gameKey);
     sheet.getRange(2, nextColumnIndex).setValue(ltoken);
     sheet.getRange(3, nextColumnIndex).setValue(ltuid);
-    sheet.getRange(4, nextColumnIndex).setValue(baseCookie);
+    sheet.getRange(4, nextColumnIndex).setValue(finalCookie);
     sheet.getRange(5, nextColumnIndex).setValue(formattedInfo);
 
     Browser.msgBox(
