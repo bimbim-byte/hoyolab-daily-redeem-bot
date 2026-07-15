@@ -68,6 +68,21 @@ function jalankanAutoRedeem() {
 }
 
 function pantauKodeBaru() {
+  const dbhash_constants = {
+    genshin: {
+      game: "Genshin Impact",
+      giftUrl: "https://genshin.hoyoverse.com/en/gift?code="
+    },
+    hsr: {
+      game: "Honkai: Star Rail",
+      giftUrl: "https://hsr.hoyoverse.com/gift?code="
+    },
+    zzz: {
+      game: "Zenless Zone Zero",
+      giftUrl: "https://zenless.hoyoverse.com/redemption?code="
+    }
+  }
+
   console.log("=== Memulai Pemantauan Kode Baru dari API ===");
 
   try {
@@ -86,11 +101,11 @@ function pantauKodeBaru() {
 
     const existingRows = sheet.getDataRange().getValues();
 
-    for (const apiKey in DEFAULT_CONSTANTS) {
+    for (const apiKey in dbhash_constants) {
       const gameCodes = apiData[apiKey];
       if (!Array.isArray(gameCodes)) continue;
 
-      const gameInfo = DEFAULT_CONSTANTS[apiKey];
+      const gameInfo = dbhash_constants[apiKey];
 
       for (const item of gameCodes) {
         const code = item.code;
@@ -304,7 +319,7 @@ class Game {
 
         try {
           const sheetLogin = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Login");
-          if (!sheet) { setupSpreadsheet(); sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Login"); }
+          if (!sheetLogin) { setupSpreadsheet(); sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Login"); }
           if (sheetLogin) {
             const rows = sheetLogin.getDataRange().getValues();
             const todayString = new Date().toDateString();
