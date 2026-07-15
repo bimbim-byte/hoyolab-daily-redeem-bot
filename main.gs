@@ -1,7 +1,6 @@
-const TELEGRAM_TOKEN = ""; // isi dengan bot telegram milikmu
-const TELEGRAM_CHAT_ID = ""; // isi id telegram mu
-const SHEET_NAME = "Akun"; // Sesuaikan dengan nama sheet pada spreadsheet
-const WEBHOOK_URL = ""; // masukan kesini url aplikasinya ketika sudah melakukan deploy ke versi terbaru
+const TELEGRAM_TOKEN = "";        // MASUKAN BOT TOKEN TELEGRAM MU
+const TELEGRAM_CHAT_ID = "";      // MASUKAN ID CHAT TELEGRAM MU
+const WEBHOOK_URL = "";           // SETELAH MELAKUKAN DEPLOYMENT BARU, MASUKAN URL APP NYA KE WEBHOOK URL, LALU JALANKAN SETWEBHOOK()
 
 const telegramUrl = "https://api.telegram.org/bot" + TELEGRAM_TOKEN;
 
@@ -13,6 +12,22 @@ const COMMON_HEADERS = {
   "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36",
   "x-rpc-client_type": "4"
 };
+
+function setupSpreadsheet(){
+  const ss=SpreadsheetApp.getActiveSpreadsheet(),cfg=[
+    {n:"Akun",t:"col",v:["game","ltoken_v2","ltuid_v2","cookie","info"]},
+    {n:"ListRedeem",t:"row",v:["game","code","description","created","url","telegram_notif"]},
+    {n:"Redeem",t:"row",v:["timestamp","game","uid","nickname","code","status"]},
+    {n:"Login",t:"row",v:["timestamp","game","uid","nickname","day","status"]}
+  ];
+  cfg.forEach(c=>{
+    let s=ss.getSheetByName(c.n)||ss.insertSheet(c.n);
+    ss.setActiveSheet(s);
+    let d=c.t=="col"?s.getRange(1,1,c.v.length,1).getValues().flat():s.getRange(1,1,1,c.v.length).getValues()[0];
+    if(!c.v.every((v,i)=>v===d[i]))
+      c.t=="col"?s.getRange(1,1,c.v.length,1).setValues(c.v.map(v=>[v])):s.getRange(1,1,1,c.v.length).setValues([c.v]);
+  });
+}
 
 function setWebhook() {
   const response = UrlFetchApp.fetch(telegramUrl + "/setWebhook?url=" + WEBHOOK_URL);
@@ -67,25 +82,15 @@ function pantauKodeBaru() {
 
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     let sheet = ss.getSheetByName("ListRedeem");
-
-    if (!sheet) {
-      sheet = ss.insertSheet("ListRedeem");
-      sheet.appendRow(["game", "code", "description", "created", "url", "telegram_send_notif"]);
-    }
+    if (!sheet) { setupSpreadsheet(); }
 
     const existingRows = sheet.getDataRange().getValues();
 
-    const gameMappings = {
-      genshin: { name: "Genshin Impact", urlTemplate: "https://genshin.hoyoverse.com/en/gift?code=" },
-      hsr:     { name: "Honkai: Star Rail", urlTemplate: "https://hsr.hoyoverse.com/gift?code=" },
-      zzz:     { name: "Zenless Zone Zero", urlTemplate: "https://zenless.hoyoverse.com/redemption?code=" }
-    };
-
-    for (const apiKey in gameMappings) {
+    for (const apiKey in DEFAULT_CONSTANTS) {
       const gameCodes = apiData[apiKey];
       if (!Array.isArray(gameCodes)) continue;
 
-      const gameInfo = gameMappings[apiKey];
+      const gameInfo = DEFAULT_CONSTANTS[apiKey];
 
       for (const item of gameCodes) {
         const code = item.code;
@@ -93,13 +98,13 @@ function pantauKodeBaru() {
 
         const createdDate = item.added_at ? new Date(item.added_at * 1000) : new Date();
         const formattedCreatedDate = Utilities.formatDate(createdDate, Session.getScriptTimeZone(), "yyyy-MM-dd HH:mm:ss");
-        const manualUrl = gameInfo.urlTemplate + code;
+        const manualUrl = gameInfo.giftUrl + code;
 
         let existingRowIndex = -1;
         let currentStatusNotif = "";
 
         for (let r = 0; r < existingRows.length; r++) {
-          if (existingRows[r][0].toString() === gameInfo.name && existingRows[r][1].toString() === code.toString()) {
+          if (existingRows[r][0].toString() === gameInfo.game && existingRows[r][1].toString() === code.toString()) {
             existingRowIndex = r + 1;
             currentStatusNotif = existingRows[r][5] ? existingRows[r][5].toString() : "";
             break;
@@ -110,17 +115,16 @@ function pantauKodeBaru() {
           continue;
         }
 
-        console.log(`[Proses] Mengirim/Mengulang notifikasi untuk ${gameInfo.name}: ${code} (Status Sebelumnya: ${currentStatusNotif || "Baru"})`);
+        console.log(`[Proses] Mengirim/Mengulang notifikasi untuk ${gameInfo.game}: ${code} (Status Sebelumnya: ${currentStatusNotif || "Baru"})`);
 
         let telegramStatus = "Token Kosong";
         if (TELEGRAM_TOKEN && TELEGRAM_CHAT_ID) {
-          const kirimNotif = sendNewNotif(gameInfo.name, code, description, manualUrl);
-          telegramStatus = kirifNotif ? "Selesai Dikirim" : "Gagal Mengirim";
+          const kirimNotif = sendNewNotif(gameInfo.game, code, description, manualUrl);
+          telegramStatus = kirimNotif ? "Selesai Dikirim" : "Gagal Mengirim";
         }
-
         if (existingRowIndex === -1) {
           sheet.appendRow([
-            gameInfo.name,
+            gameInfo.game,
             code,
             description,
             formattedCreatedDate,
@@ -151,6 +155,7 @@ const DEFAULT_CONSTANTS = {
     gameBiz: "hk4e_global",
     redeemUrl: "https://public-operation-hk4e.hoyoverse.com/common/apicdkey/api/webExchangeCdkey",
     // redeemUrl: "https://sg-hk4e-api.hoyoverse.com/common/apicdkey/api/webExchangeCdkey",
+    giftUrl: "https://genshin.hoyoverse.com/en/gift?code=",
     url: {
       info: "https://sg-hk4e-api.hoyolab.com/event/sol/info",
       home: "https://sg-hk4e-api.hoyolab.com/event/sol/home",
@@ -164,6 +169,7 @@ const DEFAULT_CONSTANTS = {
     gameBiz: "hkrpg_global",
     redeemUrl: "https://public-operation-hkrpg.hoyoverse.com/common/apicdkey/api/webExchangeCdkeyRisk",
     // redeemUrl: "https://sg-hkrpg-api.hoyoverse.com/common/apicdkey/api/webExchangeCdkeyRisk",
+    giftUrl: "https://hsr.hoyoverse.com/gift?code=",
     url: {
       info: "https://sg-public-api.hoyolab.com/event/luna/os/info",
       home: "https://sg-public-api.hoyolab.com/event/luna/os/home",
@@ -176,6 +182,7 @@ const DEFAULT_CONSTANTS = {
     gameId: 8,
     gameBiz: "nap_global",
     redeemUrl: "https://public-operation-nap.hoyoverse.com/common/apicdkey/api/webExchangeCdkeyRisk",
+    giftUrl: "https://zenless.hoyoverse.com/redemption?code=",
     url: {
       info: "https://sg-public-api.hoyolab.com/event/luna/zzz/os/info",
       home: "https://sg-public-api.hoyolab.com/event/luna/zzz/os/home",
@@ -191,14 +198,7 @@ class Game {
   }
 
   get commonHeaders() {
-    return {
-      'Accept': 'application/json, text/plain, */*',
-      'Accept-Encoding': 'gzip, deflate, br, zstd',
-      'Connection': 'keep-alive',
-      'x-rpc-app_version': '2.34.1',
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36',
-      'x-rpc-client_type': '4'
-    };
+    return COMMON_HEADERS;
   }
 
   async fetchWithRetry(url, options, retries = 3) {
@@ -304,6 +304,7 @@ class Game {
 
         try {
           const sheetLogin = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Login");
+          if (!sheet) { setupSpreadsheet(); sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Login"); }
           if (sheetLogin) {
             const rows = sheetLogin.getDataRange().getValues();
             const todayString = new Date().toDateString();
@@ -399,7 +400,6 @@ class Game {
 
   async runRedeem(hoyolabCookies, redeemCookies) {
     console.log(`=== Memulai Auto Redeem untuk ${this.constants.game} ===`);
-
     let activeCodes = [];
     try {
       const apiGameKey = this.name === "starrail" ? "hsr" : (this.name === "zenless" ? "zzz" : this.name);
@@ -419,6 +419,7 @@ class Game {
     let sheetRows = [];
     try {
       const sheetRedeem = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Redeem");
+      if (!sheet) { setupSpreadsheet(); }
       sheetRows = sheetRedeem ? sheetRedeem.getDataRange().getValues() : [];
     } catch (sheetErr) {
       handleError(`Database Sheet (${this.constants.game})`, "Sistem Utama", `Gagal membaca sheet 'Redeem': ${sheetErr.message}`);
@@ -464,7 +465,7 @@ class Game {
           });
 
           if (isAlreadyRedeemed) {
-            console.log(`箱 [SKIP] ${this.constants.game} | ${accountDetails.nickname} | Kode: [${code}]`);
+            console.log(`😿 [SKIP] ${this.constants.game} | ${accountDetails.nickname} | Kode: [${code}]`);
             continue;
           }
 
@@ -551,6 +552,7 @@ class Game {
   writeToRedeemSheet(gameName, accountDetails, code, status) {
     try {
       const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Redeem");
+      if (!sheet) { setupSpreadsheet(); sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Redeem");}
       if (sheet) {
         sheet.appendRow([
           new Date(),
@@ -570,6 +572,7 @@ class Game {
   writeToLoginSheet(gameName, accountDetails, dayCount, status) {
     try {
       const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Login");
+      if (!sheet) { setupSpreadsheet(); sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Login"); }
       if (sheet) {
         sheet.appendRow([new Date(), gameName, "'" + accountDetails.uid, accountDetails.nickname, dayCount, status]);
       }
@@ -692,7 +695,8 @@ function handleTelegram(update) {
 }
 
 function handleShowAll(chatId) {
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAME);
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Akun");
+  if (!sheet) { setupSpreadsheet(); }
   const data = sheet.getDataRange().getValues();
 
   if (data[0].length <= 1) {
@@ -712,7 +716,8 @@ function handleShowAll(chatId) {
 function handleGetData(chatId, uid) {
   if (!uid) return sendMessage(chatId, "⚠️ Format salah. Gunakan: <code>/getdata [UID]</code>");
 
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAME);
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Akun");
+  if (!sheet) { setupSpreadsheet(); }
   const data = sheet.getDataRange().getValues();
   const colIndex = findColumnByUid(data, uid);
 
@@ -729,7 +734,8 @@ function handleGetData(chatId, uid) {
 }
 
 async function handleStateConversation(chatId, text, state, cache) {
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAME);
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Akun");
+  if (!sheet) { setupSpreadsheet(); }
 
   if (text.toLowerCase() === "batal") {
     cache.remove("state_" + chatId);
@@ -864,7 +870,8 @@ async function handleStateConversation(chatId, text, state, cache) {
 function handleEditDataStart(chatId, uid, cache) {
   if (!uid) return sendMessage(chatId, "⚠️ Format salah. Gunakan: <code>/editdata [UID]</code>");
 
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAME);
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Akun");
+  if (!sheet) { setupSpreadsheet(); }
   const data = sheet.getDataRange().getValues();
   const colIndex = findColumnByUid(data, uid);
 
@@ -877,7 +884,8 @@ function handleEditDataStart(chatId, uid, cache) {
 function handleHapusDataStart(chatId, uid, cache) {
   if (!uid) return sendMessage(chatId, "⚠️ Format salah. Gunakan: <code>/hapusdata [UID]</code>");
 
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAME);
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Akun");
+  if (!sheet) { setupSpreadsheet(); }
   const data = sheet.getDataRange().getValues();
   const colIndex = findColumnByUid(data, uid);
 
@@ -901,7 +909,8 @@ function handleHapusDataStart(chatId, uid, cache) {
 function handleManualRedeemStart(chatId, uid, cache) {
   if (!uid) return sendMessage(chatId, "⚠️ Format salah. Gunakan: <code>/redeem [UID]</code>");
 
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAME);
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Akun");
+  if (!sheet) { setupSpreadsheet(); }
   const data = sheet.getDataRange().getValues();
   const colIndex = findColumnByUid(data, uid);
 
@@ -919,7 +928,8 @@ function handleCallbackQuery(callback, cache) {
   const chatId = callback.message.chat.id;
   const messageId = callback.message.message_id;
   const cbData = callback.data;
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAME);
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Akun");
+  if (!sheet) { setupSpreadsheet(); }
 
   if (cbData.startsWith("DELETE_CONFIRM_")) {
     const uid = cbData.replace("DELETE_CONFIRM_", "");
@@ -1024,10 +1034,7 @@ function handleError(modul, namaAkun, pesanError) {
 function getHoyoData() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheet = ss.getSheetByName("Akun");
-
-  if (!sheet) {
-    throw new Error("Sheet dengan nama 'Akun' tidak ditemukan!");
-  }
+  if (!sheet) { setupSpreadsheet(); }
 
   const data = sheet.getDataRange().getValues();
 
@@ -1105,7 +1112,8 @@ function getGameRecord(game, cookie) {
 }
 
 function updateHoyoInfo() {
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAME);
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Akun");
+  if (!sheet) { setupSpreadsheet(); }
   const data = sheet.getDataRange().getValues();
 
   const games = data[0];
@@ -1170,12 +1178,8 @@ function sendNewNotif(gameName, code, description, claimUrl) {
 
 async function tambahAkunBaruWizard() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = ss.getSheetByName(SHEET_NAME);
-  
-  if (!sheet) {
-    Browser.msgBox("❌ Error", `Sheet dengan nama '${SHEET_NAME}' tidak ditemukan!`, Browser.Buttons.OK);
-    return;
-  }
+  const sheet = ss.getSheetByName("Akun");
+  if (!sheet) { setupSpreadsheet(); }
 
   let gameKey = "";
   while (true) {
