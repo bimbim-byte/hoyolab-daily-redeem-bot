@@ -16,10 +16,10 @@ Sistem otomasi berbasis **Google Apps Script (GAS)** yang dirancang untuk melaku
 
 ## 🏁 Sebelum Memulai
 Ikutilah tutorial pada tautan berikut untuk mendapatkan nilai ID Cookie Anda:
-👉 [Panduan Mengambil Cookie](https://link.com)
+👉 [Panduan Mengambil Cookie](https://github.com/bimbim-byte/hoyolab-daily-redeem-bot/tree/main/tutorial_get_cookie)
 
 ---
 
 ## 🚩 Langkah Eksekusi Kode
 Setelah berhasil mendapatkan cookie, silakan ikuti tutorial di bawah ini untuk menjalankan kode menggunakan sistem *Trigger* otomatis serta integrasi notifikasi Telegram:
-👉 [Panduan Trigger & Notifikasi Telegram](https://link.com)
+👉 [Panduan Trigger & Notifikasi Telegram](https://github.com/bimbim-byte/hoyolab-daily-redeem-bot/tree/main/tutorial_set_appsscript)
