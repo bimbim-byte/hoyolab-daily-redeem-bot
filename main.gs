@@ -617,12 +617,18 @@ class TelegramNotifier {
   }
 
   static sendRedeemNotification(gameName, account, code, status) {
+    let statusMessage = status;
+    if (status && status.includes("Please log in")) {
+      statusMessage = `❌ Gagal (Cookie kedaluwarsa! Silakan perbarui cookie untuk UID ini menggunakan perintah /editdata)`;
+    } else {
+      statusMessage = `\`${status}\``; // Format default dengan backtick jika statusnya normal/lainnya
+    }
     const message = `*🎁 ${gameName} - Redeem Code*
 ──────────────────
 🏷️ *Nickname:* ${account.nickname}
 🆔 *UID:* \`${account.uid}\`
 🔑 *Kode:* \`${code}\`
-📊 *Status API:* \`${status}\``;
+📊 *Status API:* \`${statusMessage}\``;
     this.sendRequest(message);
   }
 
@@ -755,23 +761,28 @@ async function handleStateConversation(chatId, text, state, cache) {
       }
       savedData.game = text.toLowerCase();
       cache.put("data_" + chatId, JSON.stringify(savedData), 300);
-      cache.put("state_" + chatId, "ADD_LTOKEN", 300);
+      cache.put("state_" + chatId, "ADD_COOKIE", 300);
       sendMessage(chatId, "🔑 Masukkan <b>ltoken_v2</b>:");
     } 
-    else if (state === "ADD_LTOKEN") {
-      savedData.ltoken = text;
-      cache.put("data_" + chatId, JSON.stringify(savedData), 300);
-      cache.put("state_" + chatId, "ADD_LTUID", 300);
-      sendMessage(chatId, "🆔 Masukkan <b>ltuid_v2</b>:");
-    } 
-    else if (state === "ADD_LTUID") {
-      savedData.ltuid = text;
-      cache.put("data_" + chatId, JSON.stringify(savedData), 300);
-      cache.put("state_" + chatId, "ADD_COOKIE", 300);
-      sendMessage(chatId, "🍪 Masukkan <b>cookie</b>:");
-    } 
+              else if (state === "ADD_LTOKEN") {
+                savedData.ltoken = text;
+                cache.put("data_" + chatId, JSON.stringify(savedData), 300);
+                cache.put("state_" + chatId, "ADD_LTUID", 300);
+                sendMessage(chatId, "🆔 Masukkan <b>ltuid_v2</b>:");
+              } 
+              else if (state === "ADD_LTUID") {
+                savedData.ltuid = text;
+                cache.put("data_" + chatId, JSON.stringify(savedData), 300);
+                cache.put("state_" + chatId, "ADD_COOKIE", 300);
+                sendMessage(chatId, "🍪 Masukkan <b>cookie</b>:");
+              } 
     else if (state === "ADD_COOKIE") {
       savedData.cookie = text;
+      const selected_cookie = extractCookies(savedData.cookie);
+      savedData.ltoken = selected_cookie.ltoken_v2;
+      savedData.ltuid = selected_cookie.ltuid_v2;
+      savedData.cookie = savedData.cookie.trim();
+
       sendMessage(chatId, "⏳ Menyimpan data & memperbarui baris info...");
 
       const nextCol = sheet.getLastColumn() + 1;
