@@ -779,18 +779,6 @@ async function handleStateConversation(chatId, text, state, cache) {
       cache.put("state_" + chatId, "ADD_COOKIE", 300);
       sendMessage(chatId, "🔑 Masukkan <b>ltoken_v2</b>:");
     } 
-              else if (state === "ADD_LTOKEN") {
-                savedData.ltoken = text;
-                cache.put("data_" + chatId, JSON.stringify(savedData), 300);
-                cache.put("state_" + chatId, "ADD_LTUID", 300);
-                sendMessage(chatId, "🆔 Masukkan <b>ltuid_v2</b>:");
-              } 
-              else if (state === "ADD_LTUID") {
-                savedData.ltuid = text;
-                cache.put("data_" + chatId, JSON.stringify(savedData), 300);
-                cache.put("state_" + chatId, "ADD_COOKIE", 300);
-                sendMessage(chatId, "🍪 Masukkan <b>cookie</b>:");
-              } 
     else if (state === "ADD_COOKIE") {
       savedData.cookie = text;
       const selected_cookie = extractCookies(savedData.cookie);
